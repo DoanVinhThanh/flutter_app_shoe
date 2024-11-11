@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_/SQLite/database_helper.dart';
-import 'package:flutter_/menu/bottom_navigation_bar.dart';
+import 'package:flutter_/menu/bottom_navigation_bar.dart'; // Trang chính sau khi đăng nhập
 import 'package:flutter_/models/users_sqlite.dart';
 import 'package:flutter_/screens/authentication/forgot_password_screen.dart';
 import 'package:flutter_/screens/authentication/sign_up_screen.dart';
+import 'package:flutter_/screens/admin/home_page_admin.dart'; // Trang quản trị
 import 'package:flutter_/widget/text_link.dart';
 import 'package:flutter_/widget/textfield.dart';
-
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -26,84 +26,48 @@ class _SignInScreenState extends State<SignInScreen> {
   bool isVisible = false;
   bool isLoginTrue = false;
 
-  //SQLite
+  // SQLite
   final db = DatabaseHelper();
-  //login method
+
+  // login method
   login() async {
-  if (emailLogin.text.isEmpty || passwordLogin.text.isEmpty) {
-    setState(() {
-      isLoginTrue = true;
-    });
-    return;
+    if (emailLogin.text.isEmpty || passwordLogin.text.isEmpty) {
+      setState(() {
+        isLoginTrue = true;
+      });
+      return;
+    }
+
+    // Kiểm tra nếu email là 'admin' và mật khẩu là '1'
+    if (emailLogin.text == 'admin' && passwordLogin.text == '1') {
+      // Chuyển hướng đến trang admin
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>  AdminScreen(userEmail: emailLogin.text,),
+        ),
+      );
+      return; // Dừng lại ở đây nếu là admin
+    }
+
+    // Nếu không phải admin, kiểm tra thông tin đăng nhập từ SQLite
+    var res = await db.login(
+      Users(usrEmail: emailLogin.text, usrPassword: passwordLogin.text),
+    );
+
+    if (res == true) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(userEmail: emailLogin.text),
+        ),
+      );
+    } else {
+      setState(() {
+        isLoginTrue = true;
+      });
+    }
   }
-  
-  var res = await db.login(
-    Users(usrEmail: emailLogin.text, usrPassword: passwordLogin.text),
-  );
-  
-  if (res == true) {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (context) => HomePage(userEmail: emailLogin.text),
-    ),
-  );
-}
- else {
-    setState(() {
-      isLoginTrue = true;
-    });
-  }
-}
-
-  //API
-  // Future<void> login() async {
-  //   if (emailLogin.text.isEmpty || passwordLogin.text.isEmpty) {
-  //     setState(() {
-  //       isLoginTrue = true;
-  //     });
-  //     return;
-  //   }
-
-  //   // Địa chỉ API của bạn
-  //   final url = Uri.parse('http://192.168.1.71:3000/api/users/login'); // Thay <YOUR_API_BASE_URL> bằng địa chỉ API thực
-
-  //   try {
-  //     final response = await http.post(
-  //       url,
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: json.encode({
-  //         'email': emailLogin.text,
-  //         'password': passwordLogin.text,
-  //       }),
-  //     );
-
-  //     if (response.statusCode == 200) {
-  //       // Xử lý thành công
-  //       final data = json.decode(response.body);
-  //       // Lưu token hoặc thông tin người dùng nếu cần
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(
-  //           builder: (context) => HomePage(userEmail: emailLogin.text),
-  //         ),
-  //       );
-  //     } else {
-  //       // Xử lý lỗi
-  //       setState(() {
-  //         isLoginTrue = true;
-  //       });
-  //     }
-  //   } catch (e) {
-  //     // Xử lý lỗi khi gọi API
-  //     setState(() {
-  //       isLoginTrue = true;
-  //     });
-  //     print('Error: $e');
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {

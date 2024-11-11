@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_/SQLite/database_helper.dart';
@@ -10,9 +8,6 @@ import 'package:flutter_/screens/user/address_screen.dart';
 import 'package:flutter_/widget/textfield.dart';
 import 'package:flutter_/widget/titleListCustom.dart';
 import 'package:flutter_/widget/title_container.dart';
-
-
-
 import 'package:image_picker/image_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -29,16 +24,23 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final formkey = GlobalKey<FormState>();
+  final formkey1 = GlobalKey<FormState>();
+  final formkey2 = GlobalKey<FormState>();
+  final formkey3 = GlobalKey<FormState>();
 
   final fullNameController = TextEditingController();
   final phoneNumberController = TextEditingController();
   final TextEditingController datePickerController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
+  bool isEmailSubmitted = false;
 
   Users? user;
   final db = DatabaseHelper();
 
   DateTime? _selectedDate;
-  // Hàm để mở DatePicker
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -59,7 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    
     _loadUserData();
   }
 
@@ -73,22 +74,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final scaffoldKey = GlobalKey<FormState>();
 
   final ImagePicker _picker = ImagePicker();
-  String imagePath = 'assets/cat.png'; // Đường dẫn ảnh mặc định
+  String imagePath = 'assets/cat.png';
   bool isChangeSubmitted1 = false;
   bool isChangeSubmitted2 = false;
   bool isChangeSubmitted3 = false;
 
-  // Hàm để chọn ảnh từ thư viện hoặc máy ảnh
   Future<void> _pickImage() async {
     final XFile? pickedFile =
         await _picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
-        imagePath = pickedFile.path; // Cập nhật đường dẫn ảnh
+        imagePath = pickedFile.path;
       });
-
-      // Update avatar in database
       await db.updateAvatar(widget.userEmail, imagePath);
       _loadUserData();
     }
@@ -175,7 +173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                             const SizedBox(height: 10),
-                            // Safely access user properties using null-aware operators
                             Text(
                               user?.usrFullname ?? 'Đang tải...',
                               style: const TextStyle(
@@ -203,12 +200,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Divider(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Form(
-                key: formkey,
-                child: Column(
-                  children: [
-                    const TitleContainer(title: "Thông tin cá nhân"),
-                    Stack(
+              child: Column(
+                children: [
+                  const TitleContainer(title: "Thông tin cá nhân"),
+                  Form(
+                    key: formkey1,
+                    child: Stack(
                       children: [
                         TextFieldInput(
                           controller: fullNameController,
@@ -227,35 +224,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     isChangeSubmitted1 = true;
                                   });
                                 } else {
-                                  int result = await db.updateNameUser(
-                                    widget.userEmail,
-                                    fullNameController.text,
-                                  );
-
-                                  if (result > 0) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Thông tin cá nhân đã được cập nhật!')),
+                                  if (formkey1.currentState!.validate()) {
+                                    int result = await db.updateNameUser(
+                                      widget.userEmail,
+                                      fullNameController.text,
                                     );
-                                    _loadUserData();
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Cập nhật thất bại!')),
-                                    );
+                                    if (result > 0) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Thông tin cá nhân đã được cập nhật!')),
+                                      );
+                                      _loadUserData();
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text('Cập nhật thất bại!')),
+                                      );
+                                    }
+                                    setState(() {
+                                      isChangeSubmitted1 = false;
+                                    });
                                   }
-
-                                  setState(() {
-                                    isChangeSubmitted1 = false;
-                                  });
+                                  ;
                                 }
                               },
                               icon: const Icon(Icons.edit)),
                         ),
                       ],
                     ),
-                    Stack(children: [
+                  ),
+                  Form(
+                    key: formkey2,
+                    child: Stack(children: [
                       TextFieldInput(
                         controller: phoneNumberController,
                         hint: user?.usrPhonenumber ?? 'Đang tải...',
@@ -273,34 +277,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   isChangeSubmitted2 = true;
                                 });
                               } else {
-                                int result = await db.updatePhoneUser(
-                                  widget.userEmail,
-                                  phoneNumberController.text,
-                                );
+                                if (formkey2.currentState!.validate()) {
+                                  int result = await db.updatePhoneUser(
+                                    widget.userEmail,
+                                    phoneNumberController.text,
+                                  );
 
-                                if (result > 0) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Thông tin cá nhân đã được cập nhật!')),
-                                  );
-                                  _loadUserData();
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Cập nhật thất bại!')),
-                                  );
+                                  if (result > 0) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Thông tin cá nhân đã được cập nhật!')),
+                                    );
+                                    _loadUserData();
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Cập nhật thất bại!')),
+                                    );
+                                  }
+
+                                  setState(() {
+                                    isChangeSubmitted2 = false;
+                                  });
                                 }
-
-                                setState(() {
-                                  isChangeSubmitted2 = false;
-                                });
                               }
                             },
                             icon: const Icon(Icons.edit)),
                       ),
                     ]),
-                    Stack(
+                  ),
+                  Form(
+                    key: formkey3,
+                    child: Stack(
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(10),
@@ -332,39 +341,144 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     isChangeSubmitted3 = true;
                                   });
                                 } else {
-                                  int result = await db.updatePhoneUser(
-                                    widget.userEmail,
-                                    phoneNumberController.text,
-                                  );
+                                  if (formkey3.currentState!.validate()) {
+                                    int result = await db.updateDateUser(
+                                      widget.userEmail,
+                                      datePickerController.text,
+                                    );
+                                    if (result > 0) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Thông tin cá nhân đã được cập nhật!')),
+                                      );
+                                      _loadUserData();
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text('Cập nhật thất bại!')),
+                                      );
+                                    }
 
-                                  if (result > 0) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Thông tin cá nhân đã được cập nhật!')),
-                                    );
-                                    _loadUserData();
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Cập nhật thất bại!')),
-                                    );
+                                    setState(() {
+                                      isChangeSubmitted3 = false;
+                                    });
                                   }
-
-                                  setState(() {
-                                    isChangeSubmitted3 = false;
-                                  });
                                 }
                               },
                               icon: const Icon(Icons.edit)),
                         ),
                       ],
                     ),
-                    const SizedBox(
-                      height: 10,
+                  ),
+                  Form(
+                    key: formkey,
+                    child: Column(
+                      children: [
+                        if (isEmailSubmitted) ...[
+                          TextFormField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Mật khẩu mới',
+                              icon: Icon(Icons.lock),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Mật khẩu mới không được để trống';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            controller: confirmPasswordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Xác nhận mật khẩu',
+                              icon: Icon(Icons.lock),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Xác nhận mật khẩu không được để trống';
+                              }
+                              if (value != passwordController.text) {
+                                return 'Mật khẩu không khớp';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        Container(
+                          height: 50,
+                          margin: const EdgeInsets.symmetric(horizontal: 50),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(50),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blue.shade800,
+                                Colors.blue.shade500,
+                                Colors.blue.shade400,
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: TextButton(
+                              onPressed: () async {
+                                if (isEmailSubmitted) {
+                                  if (formkey.currentState!.validate()) {
+                                    final newPassword = passwordController.text;
+                                    bool isResetSuccessful = await db.forgot(
+                                        widget.userEmail, newPassword);
+                                    if (isResetSuccessful) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              "Đặt lại mật khẩu thành công"),
+                                        ),
+                                      );
+                                      setState(() {
+                                        isEmailSubmitted = false;
+                                        passwordController.clear();
+                                        confirmPasswordController.clear();
+                                      });
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text("Đặt lại mật khẩu thất bại"),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  setState(() {
+                                    isEmailSubmitted = true;
+                                  });
+                                }
+                              },
+                              child: Text(
+                                isEmailSubmitted
+                                    ? "Đặt lại mật khẩu"
+                                    : "Đổi mật khẩu",
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             Padding(
@@ -374,23 +488,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   const TitleContainer(title: "Thông tin đơn hàng"),
                   const SizedBox(height: 20),
-                   TitleListCustom(
+                  TitleListCustom(
                     title: 'Địa Chỉ',
                     content: 'Thiết lập địa chỉ giao hàng',
                     icon: Icons.location_city,
-                    page: UserAddressScreen(userEmail: widget.userEmail,),
+                    page: UserAddressScreen(
+                      userEmail: widget.userEmail,
+                    ),
                   ),
-                  const SizedBox(height: 20),
-
-                   TitleListCustom(
-                    title: 'Trang admin',
-                    content: 'Trang admin',
-                    icon: Icons.document_scanner_outlined,
-                    page: AdminScreen(userEmail: widget.userEmail,),
-                  ),
-                  const SizedBox(
-                    height: 50,
-                  ),
+                  const SizedBox(height: 50),
                   Container(
                     height: 60,
                     decoration: BoxDecoration(
