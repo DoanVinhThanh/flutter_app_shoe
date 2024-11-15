@@ -23,8 +23,6 @@ class _BillingPaymentState extends State<BillingPayment> {
         const SizedBox(height: 10),
         _buildPaymentOption("Paypal", "assets/paypal.png", "paypal"),
         const SizedBox(height: 10),
-        _buildPaymentOption("Stripe payment", "assets/stripe.png", "stripe payment"),
-        const SizedBox(height: 10),
         _buildPaymentOption("Thanh toán khi nhận hàng", "assets/truck.png", "Thanh toán khi nhận hàng"),
 
       ],

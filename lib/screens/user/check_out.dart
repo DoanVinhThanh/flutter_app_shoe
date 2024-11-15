@@ -13,8 +13,7 @@ import 'package:flutter_/widget/cart_items.dart';
 import 'package:flutter_/widget/discount_code.dart';
 import 'package:flutter_/widget/rounded_container.dart';
 import 'package:flutter_/widget/title_container.dart';
-
-
+import 'package:flutter_paypal_checkout/flutter_paypal_checkout.dart';
 import 'package:get/get.dart';
 
 class CheckOutScreen extends StatefulWidget {
@@ -35,6 +34,7 @@ class CheckOutScreen extends StatefulWidget {
 
 class _CheckOutScreenState extends State<CheckOutScreen> {
   late Future<Address?> selectedAddress;
+  String _selectedPaymentMethod = 'paypal';
 
   @override
   void initState() {
@@ -46,8 +46,8 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use the totalPrice passed from CartScreen, if available
-    double totalPrice = widget.totalPrice ?? 0; // Use default value if not passed
+    double totalAmount = widget.totalAmount ?? 0;
+    double totalPrice = widget.totalPrice ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,31 +69,32 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
               }
 
               final cartItems = snapshot.data!;
-              double totalAmount = 0;
 
               // Calculate total amount from cart items
+              double subtotal = 0;
               for (var item in cartItems) {
                 final int quantity =
                     int.tryParse(item.cartQuantity ?? '1') ?? 1;
                 final int price =
                     int.tryParse(item.cartPrice?.replaceAll(",", "") ?? '1') ??
                         1;
-                totalAmount += quantity * price;
+                subtotal += quantity * price;
               }
-              
-              // Calculate shipping if not passed totalPrice
-              final double shipping = totalAmount * 0.02;
-              totalPrice = totalAmount + shipping;
+
+              // Calculate shipping
+              final double shipping = subtotal * 0.02;
+              totalPrice = subtotal + shipping;
 
               return SingleChildScrollView(
                 child: Column(
                   children: [
                     SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.2, // Adjust height as needed
-
+                      height: MediaQuery.of(context).size.height *
+                          0.2, // Adjust height as needed
                       child: CartItems(
-                          userEmail: widget.userEmail,
-                          showAddRemoveButton: false),
+                        userEmail: widget.userEmail,
+                        showAddRemoveButton: false,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     const DiscountCode(),
@@ -105,26 +106,36 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                       child: Column(
                         children: [
                           const SizedBox(height: 10),
-                          BillingAmount(subtotal: totalAmount),
+                          BillingAmount(subtotal: subtotal),
                           const Divider(),
                           const SizedBox(height: 10),
-                          const BillingPayment(),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const TitleContainer(
+                                  title: "Phương thức thanh toán"),
+                              const SizedBox(height: 10),
+                              _buildPaymentOption(
+                                  "Paypal", "assets/paypal.png", "paypal"),
+                              const SizedBox(height: 10),
+                              _buildPaymentOption(
+                                  "Thanh toán khi nhận hàng",
+                                  "assets/truck.png",
+                                  "Thanh toán khi nhận hàng"),
+                            ],
+                          ),
                           const SizedBox(height: 10),
                           TitleContainer(
                             title: "Địa chỉ giao hàng",
                             buttonTitle: "Thay đổi",
                             onPressed: () {
-                              Get.to(() =>
-                                  UserAddressScreen(userEmail: widget.userEmail));
+                              Get.to(() => UserAddressScreen(
+                                  userEmail: widget.userEmail));
                             },
                             showActionButton: true,
                           ),
-                          const SizedBox(
-                            height: 10,
-                          ),
-                          BillingAddress(
-                            userEmail: widget.userEmail,
-                          ),
+                          const SizedBox(height: 10),
+                          BillingAddress(userEmail: widget.userEmail),
                         ],
                       ),
                     ),
@@ -145,14 +156,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
             ),
             onPressed: () async {
               try {
-                //await StripeService.initPaymentSheet("$totalPrice", "VND");
-                //await StripeService.presentPaymentSheet();
-                // Get the cart items for the current user
                 final cartItems = await DatabaseHelper()
                     .getCartItemsByEmail(widget.userEmail);
 
                 if (cartItems.isEmpty) {
-                  // Show a message if the cart is empty
                   Get.snackbar(
                     'Thông báo',
                     'Giỏ hàng của bạn đang trống!',
@@ -160,38 +167,142 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                     backgroundColor: Colors.red,
                     colorText: Colors.white,
                   );
-                } else {
-                  // Fetch the selected address
-                  final address = await selectedAddress;
+                  return;
+                }
 
-                  if (address == null) {
-                    Get.snackbar(
-                      'Thông báo',
-                      'Vui lòng chọn địa chỉ giao hàng!',
-                      snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                    );
-                    return;
-                  }
+                final address = await selectedAddress;
 
-                  // Create the order
+                if (address == null) {
+                  Get.snackbar(
+                    'Thông báo',
+                    'Vui lòng chọn địa chỉ giao hàng!',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                  );
+                  return;
+                }
+
+                // Calculate total amount from cart items
+                double subtotal = 0;
+                for (var item in cartItems) {
+                  final int quantity =
+                      int.tryParse(item.cartQuantity ?? '1') ?? 1;
+                  final int price =
+                      int.tryParse(item.cartPrice?.replaceAll(",", "") ?? '1') ??
+                          1;
+                  subtotal += quantity * price;
+                }
+
+                // Calculate shipping
+                final double shipping = subtotal * 0.02;
+                totalPrice = subtotal + shipping;
+
+                // Handle PayPal payment method
+                if (_selectedPaymentMethod == 'paypal') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (BuildContext context) => PaypalCheckout(
+                        sandboxMode: true,
+                        clientId:
+                            "AcWNQ1RcUeyQ5VJ1ynt2rMeSznL6CIe3hwXlyM6uqykeX3rBSoUaZ5HKCZVtDJTJpJZifci7zQduHxfh", // Replace with actual Client ID
+                        secretKey:
+                            "EBliWVAbvYiprEJjNxm272asQpbWrVju9IgqkPW2YVIJpKLFEEX64SsHFmvQ6AJwgCvk2WMDMLuOGS1E", // Replace with actual Secret Key
+                        returnURL: "success.snippetcoder.com",
+                        cancelURL: "cancel.snippetcoder.com",
+                        transactions: [
+                          {
+                            "amount": {
+                              "total": totalPrice.toStringAsFixed(2),
+                              "currency": "USD",
+                              "details": {
+                                "subtotal": subtotal.toStringAsFixed(2),
+                                "shipping": shipping.toStringAsFixed(2),
+                              },
+                            },
+                            "description": "Thanh toán đơn hàng",
+                            "item_list": {
+                              "items": cartItems
+                                  .map(
+                                    (item) => {
+                                      "name": item.cartName,
+                                      "quantity": item.cartQuantity,
+                                      "price":
+                                          item.cartPrice?.replaceAll(",", ""),
+                                      "currency": "USD",
+                                    },
+                                  )
+                                  .toList(),
+                            },
+                          }
+                        ],
+                        note:
+                            "Cảm ơn bạn đã mua sắm tại cửa hàng của chúng tôi.",
+                        onSuccess: (Map params) async {
+                          // Success callback
+                          print("onSuccess: $params");
+
+                          Order order = Order(
+                            userEmail: widget.userEmail,
+                            totalAmount: totalPrice,
+                            address:
+                                "Số nhà: ${address.addressNumber}, Đường: ${address.addressStreet}, Phường: ${address.addressWard}, Quận: ${address.addressDistrict}, Thành Phố: ${address.addressCity}",
+                            orderDate: DateTime.now().toString(),
+                          );
+
+                          final orderId =
+                              await DatabaseHelper().createOrder(order);
+
+                          if (orderId > 0) {
+                            await DatabaseHelper().clearCart(widget.userEmail);
+                            Get.to(
+                              () => SuccessScreen(
+                                title: 'Thanh toán thành công',
+                                image: "assets/checked.png",
+                                subtitle: "Đơn hàng của bạn sẽ sớm giao tới",
+                                onPressed: () => Get.offAll(() =>
+                                    HomePage(userEmail: widget.userEmail)),
+                              ),
+                            );
+                          } else {
+                            Get.snackbar(
+                              'Lỗi',
+                              'Đã xảy ra lỗi khi tạo đơn hàng, vui lòng thử lại!',
+                              snackPosition: SnackPosition.BOTTOM,
+                              backgroundColor: Colors.red,
+                              colorText: Colors.white,
+                            );
+                          }
+                        },
+                        onError: (error) {
+                          print("onError: $error");
+                          Get.snackbar(
+                            'Lỗi',
+                            'Đã xảy ra lỗi trong quá trình thanh toán!',
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: Colors.red,
+                            colorText: Colors.white,
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                }
+                else if (_selectedPaymentMethod ==
+                    'Thanh toán khi nhận hàng') {
+                  // Handle Cash on Delivery (COD)
                   Order order = Order(
                     userEmail: widget.userEmail,
-                    totalAmount: totalPrice, // Use totalPrice passed here
+                    totalAmount: totalPrice,
                     address:
                         "Số nhà: ${address.addressNumber}, Đường: ${address.addressStreet}, Phường: ${address.addressWard}, Quận: ${address.addressDistrict}, Thành Phố: ${address.addressCity}",
                     orderDate: DateTime.now().toString(),
                   );
 
-                  // Use orderId to check if the order creation was successful
                   final orderId = await DatabaseHelper().createOrder(order);
 
                   if (orderId > 0) {
-                    // Clear the cart after order creation
                     await DatabaseHelper().clearCart(widget.userEmail);
-
-                    // Show success screen
                     Get.to(
                       () => SuccessScreen(
                         title: 'Thanh toán thành công',
@@ -212,9 +323,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
                   }
                 }
               } catch (e) {
+                print("Error during checkout: $e");
                 Get.snackbar(
                   'Lỗi',
-                  'Đã xảy ra lỗi: $e',
+                  'Đã xảy ra lỗi trong quá trình thanh toán!',
                   snackPosition: SnackPosition.BOTTOM,
                   backgroundColor: Colors.red,
                   colorText: Colors.white,
@@ -222,11 +334,31 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
               }
             },
             child: const Text(
-              "Thanh toán",
-              style: TextStyle(color: Colors.white),
+              "Hoàn tất đơn hàng",
+              style: TextStyle(fontSize: 18),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(
+      String paymentMethodName, String paymentMethodIcon, String paymentMethod) {
+    return RadioListTile<String>(
+      value: paymentMethod,
+      groupValue: _selectedPaymentMethod,
+      onChanged: (value) {
+        setState(() {
+          _selectedPaymentMethod = value!;
+        });
+      },
+      title: Row(
+        children: [
+          Image.asset(paymentMethodIcon, width: 30,height: 30,),
+          const SizedBox(width: 2),
+          Text(paymentMethodName),
+        ],
       ),
     );
   }
