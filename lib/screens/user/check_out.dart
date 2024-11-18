@@ -8,7 +8,6 @@ import 'package:flutter_/screens/user/address_screen.dart';
 import 'package:flutter_/screens/user/success_screen.dart';
 import 'package:flutter_/widget/billing_address.dart';
 import 'package:flutter_/widget/billing_amount.dart';
-import 'package:flutter_/widget/billing_payment.dart';
 import 'package:flutter_/widget/cart_items.dart';
 import 'package:flutter_/widget/discount_code.dart';
 import 'package:flutter_/widget/rounded_container.dart';

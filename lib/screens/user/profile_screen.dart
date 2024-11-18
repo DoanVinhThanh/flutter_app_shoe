@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_/SQLite/database_helper.dart';
 import 'package:flutter_/models/users_sqlite.dart';
-import 'package:flutter_/screens/admin/home_page_admin.dart';
 import 'package:flutter_/screens/authentication/sign_in_screen.dart';
 import 'package:flutter_/screens/user/address_screen.dart';
 import 'package:flutter_/widget/textfield.dart';
@@ -473,6 +472,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: 20,
+                        ),
+                        GestureDetector(
+                          onTap: () async {
+                            // Hiển thị hộp thoại xác nhận
+                            bool? confirmDelete = await showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: const Text("Xác nhận xóa tài khoản"),
+                                  content: const Text(
+                                      "Bạn có chắc chắn muốn xóa tài khoản này?"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(false); // Hủy bỏ
+                                      },
+                                      child: const Text("Hủy"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(true); // Xác nhận
+                                      },
+                                      child: const Text("Xóa"),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+
+                            // Nếu người dùng xác nhận, tiến hành xóa tài khoản
+                            if (confirmDelete == true) {
+                              int result =
+                                  await db.deleteUser(widget.userEmail);
+                              if (result > 0) {
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(const SnackBar(
+                                  content:
+                                      Text("Tài khoản đã được xóa thành công"),
+                                ));
+
+                                // Chuyển hướng về màn hình đăng nhập
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SignInScreen()),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(const SnackBar(
+                                  content: Text("Xóa tài khoản thất bại"),
+                                ));
+                              }
+                            }
+                          },
+                          child: const Text(
+                            "Xóa tài khoản",
+                            style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],

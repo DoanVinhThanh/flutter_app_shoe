@@ -1,4 +1,3 @@
-
 import 'package:flutter_/models/address_sqlite.dart';
 import 'package:flutter_/models/cart_sqlite.dart';
 import 'package:flutter_/models/category_sqlite.dart';
@@ -136,6 +135,16 @@ class DatabaseHelper {
     return await db.update(
       'users',
       {'usrAvarta': avatarPath},
+      where: 'usrEmail = ?',
+      whereArgs: [email],
+    );
+  }
+
+  // Delete user by email
+  Future<int> deleteUser(String email) async {
+    final Database db = await initDB();
+    return await db.delete(
+      'users',
       where: 'usrEmail = ?',
       whereArgs: [email],
     );
